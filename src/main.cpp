@@ -42,16 +42,23 @@ void loop() {
   }
 
   // Link status
+  // millis() again, not `now`: poll() may have stamped lastFrameMs a tick
+  // after `now`, and `now - lastFrameMs` would wrap to ~4e9 and read as LOST.
   if (radar.frames() == 0) state.link = LinkStatus::WAIT;
-  else state.link = (now - radar.lastFrameMs() > LINK_TIMEOUT_MS) ? LinkStatus::LOST : LinkStatus::OK;
+  else state.link = (millis() - radar.lastFrameMs() > LINK_TIMEOUT_MS) ? LinkStatus::LOST : LinkStatus::OK;
   if (state.link == LinkStatus::LOST)
     for (Track &t : state.tracks) t.active = false;
 
-  // Firmware query: retry every 2 s until it answers, while data is flowing
-  // (a sensor that is not connected yet would not answer anyway).
+  // Firmware query: retry every 2 s while data is flowing (a sensor that is
+  // not connected yet would not answer anyway), but only a few times. Each
+  // query drops the sensor into config mode, which resets its tracking, so
+  // retrying forever (e.g. while the phone app holds the sensor over BT)
+  // wipes the targets every 2 s.
   static uint32_t lastFwReq = 0;
-  if (!radar.hasFirmware() && state.link == LinkStatus::OK && now - lastFwReq > 2000) {
+  static uint8_t fwTries = 0;
+  if (!radar.hasFirmware() && fwTries < 3 && state.link == LinkStatus::OK && now - lastFwReq > 2000) {
     lastFwReq = now;
+    fwTries++;
     radar.requestFirmware();
   }
   state.firmware = radar.firmware();

@@ -6,6 +6,12 @@ HLK-LD2450 24 GHz radar display for the Waveshare ESP32-S3-RLCD-4.2 (400×300 re
 
 *Host-rendered preview of the real `radar_ui.cpp` with synthetic targets.*
 
+## Demo
+
+[![Demo video](https://img.youtube.com/vi/R_z7cVuc3Cc/hqdefault.jpg)](https://www.youtube.com/shorts/R_z7cVuc3Cc)
+
+Watch on YouTube: <https://www.youtube.com/shorts/R_z7cVuc3Cc>
+
 ## Wiring
 
 | LD2450 | RLCD-4.2 header | GPIO |
@@ -34,6 +40,12 @@ that are not framed commands. If that ever becomes a problem, move the pins to G
   when. **KEY** resets it.
 - **Bottom right:** frames received, framing errors, LD2450 firmware version.
 
+## 3D printing
+
+[`3DPrinting/rlcd_ld2450_bracket.stl`](3DPrinting/rlcd_ld2450_bracket.stl) is a bracket that holds
+the LD2450 on the RLCD-4.2. The model is not ours: it comes from
+[ThatProject](https://www.youtube.com/@ThatProject), and all credit goes to that author.
+
 ## Build
 
 ```sh
@@ -43,3 +55,8 @@ pio run -t upload -t monitor
 If targets move the wrong way left/right for how you mounted the sensor, set
 `RADAR_MIRROR_X 1` in `include/radar.h`. If the image is upside down, use `U8G2_R3`
 in `src/radar_ui.cpp`.
+
+## License
+
+[MIT](LICENSE) for the firmware. The STL in `3DPrinting/` is by
+[ThatProject](https://www.youtube.com/@ThatProject) and is not covered by this license.
