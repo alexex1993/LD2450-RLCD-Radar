@@ -38,6 +38,6 @@ Data flows one way through `loop()` in `src/main.cpp`:
 ## Hardware notes
 
 - The sensor sits on UART0's header pins (TXD/RXD = GPIO43/44). The ROM boot log goes out on GPIO43 into the sensor's RX; the sensor ignores it. The fallback is GPIO1/GPIO2 (`PIN_LD2450_*` in `include/radar.h`).
-- `VBUS` powers the sensor only when USB is connected. On battery, the LD2450 needs an external 5 V boost.
+- `VBUS` powers the sensor only when USB is connected. On battery, the LD2450 needs an external 5 V boost (the author uses an MT3608 trimmed to 5 V).
 - Orientation fixes: `RADAR_MIRROR_X` in `radar.h` for left/right, `U8G2_R3` in `radar_ui.cpp` for upside down.
 - `docs-preview.png` in the README is a host-rendered preview of `radar_ui.cpp`. The renderer that made it is not in this repo.

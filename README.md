@@ -20,7 +20,9 @@ Watch on YouTube: <https://www.youtube.com/shorts/R_z7cVuc3Cc>
 | RX  | `TXD`  | 43 |
 
 UART 256000 8N1. `VBUS` is present only on USB power. On the 18650 alone the sensor needs
-its own 5 V (a boost module from `3V3`/battery), since the LD2450 wants 5 V.
+its own 5 V (a boost module from `3V3`/battery), since the LD2450 wants 5 V. I use an
+**MT3608** boost module for this. Before you connect the sensor, turn the MT3608's trimpot
+until the output reads 5 V, because these modules often ship set well above that.
 
 At reset the ROM prints its boot log on GPIO43 (the sensor's RX). The sensor ignores bytes
 that are not framed commands. If that ever becomes a problem, move the pins to GP1/GP2 in
