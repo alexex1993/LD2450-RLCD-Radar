@@ -54,6 +54,14 @@ If targets move the wrong way left/right for how you mounted the sensor, set
 `RADAR_MIRROR_X 1` in `include/radar.h`. If the image is upside down, use `U8G2_R3`
 in `src/radar_ui.cpp`.
 
+## Photos
+
+<p align="center">
+  <img width="49%" alt="photo 1" src="https://github.com/user-attachments/assets/fa530ecd-715f-459b-89c8-ffbf915d99d6" />
+  <img width="49%" alt="photo 2" src="https://github.com/user-attachments/assets/0877cad0-5765-4c70-979e-178643ec519c" />
+</p>
+
+
 ## License
 
 [MIT](LICENSE) for the firmware. The STL in `3DPrinting/` is by
