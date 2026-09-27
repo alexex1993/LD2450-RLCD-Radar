@@ -8,8 +8,6 @@ HLK-LD2450 24 GHz radar display for the Waveshare ESP32-S3-RLCD-4.2 (400×300 re
 
 ## Demo
 
-[![Demo video](https://img.youtube.com/vi/R_z7cVuc3Cc/hqdefault.jpg)](https://www.youtube.com/shorts/R_z7cVuc3Cc)
-
 Watch on YouTube: <https://www.youtube.com/shorts/R_z7cVuc3Cc>
 
 ## Wiring
