@@ -63,6 +63,13 @@ in `src/radar_ui.cpp`.
   <img width="49%" alt="photo 2" src="https://github.com/user-attachments/assets/0877cad0-5765-4c70-979e-178643ec519c" />
 </p>
 
+## Claude Code skills
+
+This firmware was written with [Claude Code](https://claude.com/claude-code) using the
+board skills from [alexex1993/mcu-skills](https://github.com/alexex1993/mcu-skills),
+mainly `esp32s3-rlcd42` for the Waveshare ESP32-S3-RLCD-4.2 (pins, PSRAM, U8g2/ST7305,
+USB CDC). The "SKILL.md" and "reference/board-hardware.md" cited in `include/board_pins.h`
+live in that repo.
 
 ## License
 
