@@ -2,9 +2,11 @@
 //
 // The sensor streams ~10 reports/s over UART; the screen redraws at ~25 FPS
 // and eases target dots between reports so they glide rather than jump.
-// KEY (GPIO18) resets the session maximum speed.
+// KEY (GPIO18): a short press resets the session maximum speed, holding it
+// for 2 s powers off (deep sleep with no wake source, so only a reset wakes it).
 
 #include <Arduino.h>
+#include <esp_sleep.h>
 
 #include "board_pins.h"
 #include "ld2450.h"
@@ -12,9 +14,21 @@
 
 static const uint32_t FRAME_MS = 40;         // ~25 FPS; the panel refreshes at ~32 Hz
 static const uint32_t LINK_TIMEOUT_MS = 1000;
+static const uint32_t KEY_OFF_MS = 2000;     // hold KEY this long to power off
 
 static Ld2450 radar;
 static RadarState state;
+
+// Leaves a "power off" screen on the panel and sleeps until the chip is reset
+// (PWR button or a USB replug). No wake source is armed, so KEY cannot wake it.
+static void powerOff() {
+  Serial.println("power off: deep sleep until reset");
+  Serial.flush();
+  Serial1.end();
+  uiPowerOff();
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+  esp_deep_sleep_start();
+}
 
 void setup() {
   Serial.begin(115200);
@@ -65,15 +79,16 @@ void loop() {
   state.rxFrames = radar.frames();
   state.badFrames = radar.badFrames();
 
-  // KEY: reset session max speed (press edge, crude debounce).
+  // KEY: short press resets the session max speed, a long hold powers off.
+  // The board debounces KEY with a 100 nF cap; 30 ms filters the rest.
   static bool keyWas = false;
+  static uint32_t keyDownMs = 0;
   bool key = digitalRead(PIN_BTN_KEY) == LOW;
-  if (key && !keyWas) {
-    delay(20);
-    if (digitalRead(PIN_BTN_KEY) == LOW) {
-      state.stats = SessionStats();
-      Serial.println("max speed reset");
-    }
+  if (key && !keyWas) keyDownMs = now;
+  if (key && now - keyDownMs >= KEY_OFF_MS) powerOff();
+  if (!key && keyWas && now - keyDownMs >= 30) {
+    state.stats = SessionStats();
+    Serial.println("max speed reset");
   }
   keyWas = key;
 
@@ -86,12 +101,13 @@ void loop() {
     renderFrames = sensorFrames = 0;
     rateT0 = now;
 
-    Serial.printf("[%s] %.0f Hz  max %.2f m/s", state.link == LinkStatus::OK ? "OK" : "--",
-                  state.sensorHz, state.stats.maxSpeed);
+    Serial.printf("[%s] %.0f Hz  max %.1f km/h", state.link == LinkStatus::OK ? "OK" : "--",
+                  state.sensorHz, state.stats.maxSpeed * 3.6f);
     for (int i = 0; i < 3; i++) {
       const Track &t = state.tracks[i];
       if (t.active)
-        Serial.printf("  T%d %.2fm %+.0fdeg %+.0fcm/s", i + 1, t.dist(), t.angleDeg(), t.speed * 100);
+        Serial.printf("  T%d %.2fm %+.0fdeg %+.1fkm/h", i + 1, t.dist(), t.angleDeg(),
+                      t.speed * 3.6f);
     }
     Serial.println();
   }

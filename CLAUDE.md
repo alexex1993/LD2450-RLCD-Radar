@@ -33,7 +33,7 @@ Data flows one way through `loop()` in `src/main.cpp`:
    A track is held for 600 ms through dropouts. `RADAR_MIRROR_X` is applied here.
 3. **UI (`src/radar_ui.cpp`)**: U8g2 full-buffer (`_F_`) ST7305 in `U8G2_R1`. The static grid is drawn once, then copied into `bgCache` (malloc'd). Each frame `memcpy`s that cache back, draws the targets, footer, cards and status bar on top, and then calls `sendBuffer()`. A new static element therefore belongs in `drawGrid()`, and anything dynamic belongs in `uiRender()`. Because the panel is 1 bpp, a "dimmed" empty card is a 50 % checkerboard clear. `uiBegin()` must call `SPI.begin()` with the LCD pins before `lcd.begin()`, and it sends `0x38` to put the panel in HPM (~32 Hz self-refresh), which live motion needs.
 
-`include/radar.h` holds the shared state (`Track`, `RadarState`, `LinkStatus`), the sensor wiring pins, the radar geometry (8 m range, ±60°) and the `tracker*`/`ui*` prototypes. The link goes `WAIT` → `OK` → `LOST` (no frame for 1 s), and all tracks are cleared on `LOST`. The KEY button (GPIO18) resets the session max speed.
+`include/radar.h` holds the shared state (`Track`, `RadarState`, `LinkStatus`), the sensor wiring pins, the radar geometry (8 m range, ±60°) and the `tracker*`/`ui*` prototypes. The link goes `WAIT` → `OK` → `LOST` (no frame for 1 s), and all tracks are cleared on `LOST`. The KEY button (GPIO18) resets the session max speed on a short press; holding it for 2 s calls `powerOff()` (power-off screen, panel to LPM, LCD pins held, deep sleep with no wake source, so only a reset or a USB replug wakes it).
 
 ## Hardware notes
 

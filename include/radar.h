@@ -62,3 +62,4 @@ void trackerAnimate(RadarState &s);  // per rendered frame: ease display positio
 // radar_ui.cpp
 void uiBegin();
 void uiRender(const RadarState &s, uint32_t nowMs);
+void uiPowerOff();  // draws the "power off" screen, LPM, latches the panel pins

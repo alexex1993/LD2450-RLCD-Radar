@@ -37,7 +37,7 @@ that are not framed commands. If that ever becomes a problem, move the pins to G
 - **Radar:** ±60°, rings 1–8 m. Each target has a marker, a label, a heading arrow (length
   scales with speed) and a trail. Dots glide between the sensor's ~10 Hz reports.
 - **Bottom left:** the fastest |radial speed| seen this session, which target it was and
-  when. **KEY** resets it.
+  when. A short press of **KEY** resets it; holding **KEY** for 2 s turns the device off: the screen shows POWER OFF and the ESP32 goes into deep sleep. To turn it back on, press PWR or replug USB (this is a reset).
 - **Bottom right:** frames received, framing errors, LD2450 firmware version.
 
 ## 3D printing

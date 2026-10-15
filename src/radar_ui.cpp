@@ -7,8 +7,8 @@
 //   |                 .-'  8m     '-.                              |  radar sector
 //   |              ...   rings 1..8 m   ...                        |  +-60 deg, 1..8 m
 //   | MAX SPEED      '.           .'                  RX 8495      |
-//   | 2.85 m/s          '.     .'                 ERR 0            |
-//   | T3 00:05:12 KEY=rst  '-_-'          FW V2.04.23101915        |
+//   | 10.3 km/h         '.     .'                 ERR 0            |
+//   | KEY=rst hold=off     '-_-'          FW V2.04.23101915        |
 //   +--------------------------------------------------------------+
 //
 // The static grid is rendered once into a copy of the frame buffer and
@@ -18,6 +18,7 @@
 
 #include <SPI.h>
 #include <U8g2lib.h>
+#include <driver/gpio.h>
 
 #include "board_pins.h"
 #include "radar.h"
@@ -35,6 +36,12 @@ static const float DEG = 0.01745329f;
 
 static uint8_t *bgCache = nullptr;
 static size_t bufSize = 0;
+
+// Speed readouts are latched at 2 Hz so the digits stay readable; the dots
+// and arrows on the radar still move every frame.
+static const uint32_t SPEED_TEXT_MS = 500;
+static float shownSpeed[3];  // m/s, signed like Track::speed
+static float shownMax;       // m/s
 
 static const uint8_t *FONT_S = u8g2_font_profont12_tf;  // 6 px wide
 static const uint8_t *FONT_M = u8g2_font_profont17_tf;
@@ -234,11 +241,11 @@ static void drawCard(int i, const Track &t) {
   lcd.drawStr(x0 + 5, y0 + 31, buf);
 
   lcd.setFont(FONT_S);
-  int cms = (int)lroundf(fabsf(t.speed) * 100.0f);
-  snprintf(buf, sizeof(buf), "%d cm/s", cms);
+  float spd = shownSpeed[i];
+  snprintf(buf, sizeof(buf), "%.1f km/h", fabsf(spd) * 3.6f);
   lcd.drawStr(x0 + 5, y0 + 44, buf);
-  if (cms >= 5) {
-    const char *dir = t.speed > 0 ? "OUT" : "IN";
+  if (fabsf(spd) >= 0.05f) {
+    const char *dir = spd > 0 ? "OUT" : "IN";
     labelInverse(x0 + CARD_W - 6 - lcd.getStrWidth(dir), y0 + 44, dir);
   }
 }
@@ -315,17 +322,17 @@ static void drawFooter(const RadarState &s) {
   lcd.drawStr(4, 262, "MAX SPEED");
 
   lcd.setFont(FONT_L);
-  snprintf(buf, sizeof(buf), "%.2f m/s", s.stats.maxSpeed);
+  snprintf(buf, sizeof(buf), "%.1f km/h", shownMax * 3.6f);
   lcd.drawStr(4, 283, buf);
 
   lcd.setFont(FONT_S);
   if (s.stats.maxSlot >= 0) {
     uint32_t sec = s.stats.maxAtMs / 1000;
-    snprintf(buf, sizeof(buf), "T%d %02lu:%02lu:%02lu %.1fkm/h", s.stats.maxSlot + 1,
+    snprintf(buf, sizeof(buf), "T%d %02lu:%02lu:%02lu", s.stats.maxSlot + 1,
              (unsigned long)(sec / 3600), (unsigned long)(sec / 60 % 60),
-             (unsigned long)(sec % 60), s.stats.maxSpeed * 3.6f);
+             (unsigned long)(sec % 60));
   } else {
-    snprintf(buf, sizeof(buf), "KEY = reset");
+    snprintf(buf, sizeof(buf), "KEY=rst hold=off");
   }
   lcd.drawStr(4, 297, buf);
 
@@ -339,7 +346,14 @@ static void drawFooter(const RadarState &s) {
 
 // ------------------------------------------------------------------ public --
 
+static const gpio_num_t LCD_CTRL_PINS[] = {(gpio_num_t)PIN_LCD_CS, (gpio_num_t)PIN_LCD_DC,
+                                           (gpio_num_t)PIN_LCD_RST};
+
 void uiBegin() {
+  // Undo uiPowerOff()'s latch in case this boot did not clear it.
+  for (gpio_num_t p : LCD_CTRL_PINS) gpio_hold_dis(p);
+  gpio_deep_sleep_hold_dis();
+
   // U8g2 inherits the global SPI's pins; claim them first (skill rule 5).
   SPI.begin(PIN_LCD_SCLK, -1, PIN_LCD_MOSI, -1);
   lcd.begin();
@@ -352,7 +366,21 @@ void uiBegin() {
   drawGrid();
 }
 
+static void latchSpeeds(const RadarState &s, uint32_t nowMs) {
+  static uint32_t lastMs = 0;
+  static bool wasActive[3];
+  bool tick = nowMs - lastMs >= SPEED_TEXT_MS;
+  if (tick) lastMs = nowMs;
+  for (int i = 0; i < 3; i++) {
+    bool active = s.tracks[i].active;
+    if (tick || (active && !wasActive[i])) shownSpeed[i] = s.tracks[i].speed;  // new target: show at once
+    wasActive[i] = active;
+  }
+  if (tick || s.stats.maxSpeed < shownMax) shownMax = s.stats.maxSpeed;  // KEY reset: show at once
+}
+
 void uiRender(const RadarState &s, uint32_t nowMs) {
+  latchSpeeds(s, nowMs);
   memcpy(lcd.getBufferPtr(), bgCache, bufSize);
 
   for (int i = 0; i < 3; i++)
@@ -363,4 +391,23 @@ void uiRender(const RadarState &s, uint32_t nowMs) {
   drawStatusBar(s, nowMs);
 
   lcd.sendBuffer();
+}
+
+void uiPowerOff() {
+  lcd.clearBuffer();
+  lcd.setFont(FONT_L);
+  const char *msg = "POWER OFF";
+  lcd.drawStr((W - lcd.getStrWidth(msg)) / 2, 140, msg);
+  lcd.setFont(FONT_S);
+  msg = "press PWR or replug USB to start";
+  lcd.drawStr((W - lcd.getStrWidth(msg)) / 2, 165, msg);
+  lcd.sendBuffer();
+  delay(100);            // let the frame land before leaving HPM
+  lcd.sendF("c", 0x39);  // LPM: ~1 Hz self-refresh, the panel keeps the image
+  delay(100);
+
+  // Deep sleep releases the digital GPIOs; a floating RST would wipe the
+  // panel, so hold CS/DC/RST at their current (idle) levels through sleep.
+  for (gpio_num_t p : LCD_CTRL_PINS) gpio_hold_en(p);
+  gpio_deep_sleep_hold_en();
 }
